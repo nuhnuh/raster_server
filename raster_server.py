@@ -63,12 +63,18 @@ def hello_image2():
     from flask import send_file
     import io
     return send_file( io.BytesIO( data ), mimetype='image/tif', 
-            as_attachment=True, attachment_filename='cambiar.tif' ) # attachment options does not seem to work with tif (they do with png)
+            as_attachment=True, attachment_filename='cambiar.tif' ) # attachment options work, the problem was firefox (client.py works)
 
 
 @app.route('/<name>')
 def hello_name(name):
-    return "Hello {}!".format(name)
+    return 'Hello {}!'.format(name)
+
+
+#  @app.route('/<x0>')
+#  def hello_name(name):
+#      return 'x0 = {}, y0 = {}, x1 = {}, y1 = {}'.format( x0, y0, x1, y1 )
+
 
 
 if __name__ == '__main__':

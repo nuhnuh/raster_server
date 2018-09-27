@@ -7,6 +7,7 @@
     virtualenv -p python3 venv
     source venv/bin/activate
     pip instal Flask
+    pip instal opencv-python
     pip freeze > requirements.txt
 
     pip install gunicorn

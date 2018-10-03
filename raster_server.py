@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 
 
+
 from flask import Flask
 app = Flask(__name__)
+
 
 
 @app.route('/')
 def hello():
     return "Hello World!"
+
 
 
 @app.route('/image')
@@ -21,6 +24,7 @@ def hello_image():
     import io
     return send_file( io.BytesIO( data ), mimetype='image/png', 
             as_attachment=True, attachment_filename='cambiar.png' )
+
 
 
 @app.route('/image1')
@@ -44,10 +48,12 @@ def hello_image1():
     return send_file( io.BytesIO( data ), mimetype='image/png' )
 
 
+
 @app.route('/image2')
 def hello_image2():
     #  Response(response=response_pickled, status=200, mimetype='image/tiff')
     # load image
+    # TODO: target_ds = gdal.GetDriverByName('MEM').Create('', x_res, y_res, gdal.GDT_Byte)
     fn = '/usr/share/themes/AgingGorilla/metacity-1/active-button.png'
     import cv2
     img = cv2.imread( fn )
@@ -64,6 +70,7 @@ def hello_image2():
     import io
     return send_file( io.BytesIO( data ), mimetype='image/tif', 
             as_attachment=True, attachment_filename='cambiar.tif' ) # attachment options work, the problem was firefox (client.py works)
+
 
 
 @app.route('/<name>')

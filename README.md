@@ -1,5 +1,7 @@
 # raster_server
 
+Gdal tips: https://pcjericks.github.io/py-gdalogr-cookbook/raster_layers.html
+
 
 ## prepare python virtual environment
 
@@ -11,6 +13,12 @@
     pip freeze > requirements.txt
 
     pip install gunicorn
+
+    # pip install gdal
+    # sudo apt-get install libgdal-dev libgdal1-dev
+    pip install GDAL==$(gdal-config --version | awk -F'[.]' '{print $1"."$2}')
+
+    pip install geopandas
 ```
 
 

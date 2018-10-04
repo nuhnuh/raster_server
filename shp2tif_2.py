@@ -10,7 +10,7 @@ from osgeo import gdal, ogr
 
 # Define pixel_size and NoData value of new raster
 pixel_size = 5
-NoData_value = -9999
+NoData_value = 0
 
 # Filename of input OGR file
 vector_fn = 'data/ciudadela.shp'
@@ -23,8 +23,8 @@ source_ds = ogr.Open( vector_fn , 0 ) # 0 means read-only. 1 means writeable.
 #  drv = ogr.GetDriverByName( 'Memory' )
 source_layer = source_ds.GetLayer()
 source_layer.SetAttributeFilter('cparcela = 1115')
-print(len(source_layer))
 x_min, x_max, y_min, y_max = source_layer.GetExtent()
+print( source_layer.GetExtent() )
 
 # Create the destination data source
 x_res = int( (x_max - x_min) / pixel_size )

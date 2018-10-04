@@ -73,9 +73,73 @@ def hello_image2():
 
 
 
+
+@app.route('/image3')
+def hello_image3():
+    from osgeo import gdal
+    from osgeo import ogr
+
+    # Filename of the raster Tiff that will be created
+    raster_in_fn = '/home/manu/tmp/audicana/mtn25_epsg25830_0141-2.tif'
+    # Filename of input OGR file
+    vector_fn = 'data/ciudadela.shp'
+
+    # Open source raster (.tif) and find pixel size, nbands and data type
+    raster_in = gdal.Open( raster_in_fn )
+    gt = raster_in.GetGeoTransform()
+    x0, dx, dxdy, y0, dydx, dy = gt
+    assert( abs(dx) == abs(dy) )
+    dy = abs(dy)
+    pixel_size = dx
+    nbands = raster_in.RasterCount
+    data_type = raster_in.GetRasterBand(1).DataType
+
+    # Open the data source, set filter to select a given parcel and get its extent
+    source_ds = ogr.Open( vector_fn , 0 ) # 0 means read-only. 1 means writeable.
+    #  drv = ogr.GetDriverByName( 'Memory' )
+    source_layer = source_ds.GetLayer()
+    source_layer.SetAttributeFilter('cparcela = 1115')
+    x_min, x_max, y_min, y_max = source_layer.GetExtent()
+
+    # Create the destination data source
+    x_res = int( (x_max - x_min) / pixel_size )
+    y_res = int( (y_max - y_min) / pixel_size )
+    raster_out_fn = '/tmp/ciudadela.tif'
+    raster_out = gdal.GetDriverByName('GTiff').Create( raster_out_fn, x_res, y_res, nbands+1, data_type )
+    #  target_ds = gdal.GetDriverByName('MEM').Create( '', x_res, y_res, nbands, data_type )
+    raster_out.SetGeoTransform(( x_min, pixel_size, 0, y_max, 0, -pixel_size ))
+
+    # copy ROI
+    def world2pix( x_world, y_world ) : # gt = raster.GetGeoTransform()
+        x0, dx, dxdy, y0, dydx, dy = gt
+        print( gt )
+        x = ( x_world - x0 ) // dx
+        y = ( y_world - y0 ) // dy
+        return x, y
+    x_min_pix, y_max_pix = world2pix( x_min, y_max )
+    for k in range(nbands) :
+        xoff, yoff = int(x_min_pix), int(y_max_pix)
+        xcount, ycount = int(x_res), int(y_res)
+        band = raster_in.GetRasterBand( 1+k )
+        print( '##########', xoff, yoff, xcount, ycount )
+        data = band.ReadAsArray( xoff, yoff, xcount, ycount )
+        print( '##########', k, data.shape )
+        band2 = raster_out.GetRasterBand( 1+k )
+        band2.WriteArray( data )
+
+    # Rasterize
+    band = raster_out.GetRasterBand(4)
+    band.SetNoDataValue( 200 )
+    gdal.RasterizeLayer( raster_out, [4], source_layer, burn_values=[255] )
+
+    return '/tmp/ciudadela has been generated'
+
+
+
 @app.route('/<name>')
 def hello_name(name):
     return 'Hello {}!'.format(name)
+
 
 
 #  @app.route('/<x0>')

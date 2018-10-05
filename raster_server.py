@@ -78,6 +78,7 @@ def hello_image2():
 def hello_image3():
     from osgeo import gdal
     from osgeo import ogr
+    from osgeo import osr
 
     # Filename of the raster Tiff that will be created
     raster_in_fn = '/home/manu/tmp/audicana/mtn25_epsg25830_0141-2.tif'
@@ -109,6 +110,13 @@ def hello_image3():
     #  target_ds = gdal.GetDriverByName('MEM').Create( '', x_res, y_res, nbands, data_type )
     raster_out.SetGeoTransform(( x_min, pixel_size, 0, y_max, 0, -pixel_size ))
 
+    # Setting spatial reference of output raster
+    #  wkt = raster_in.GetProjection()
+    #  srs = osr.SpatialReference()
+    #  srs.ImportFromWkt(wkt)
+    #  raster_out.SetProjection( srs.ExportToWkt() )
+    raster_out.SetProjection( raster_in.GetProjection() )
+
     # copy ROI
     def world2pix( x_world, y_world ) : # gt = raster.GetGeoTransform()
         x0, dx, dxdy, y0, dydx, dy = gt
@@ -120,16 +128,16 @@ def hello_image3():
     for k in range(nbands) :
         xoff, yoff = int(x_min_pix), int(y_max_pix)
         xcount, ycount = int(x_res), int(y_res)
-        band = raster_in.GetRasterBand( 1+k )
-        print( '##########', xoff, yoff, xcount, ycount )
+        band = raster_in.GetRasterBand( 1+k ) # 1-based index
+        #  print( '##########', xoff, yoff, xcount, ycount )
         data = band.ReadAsArray( xoff, yoff, xcount, ycount )
-        print( '##########', k, data.shape )
-        band2 = raster_out.GetRasterBand( 1+k )
+        #  print( '##########', k, data.shape )
+        band2 = raster_out.GetRasterBand( 1+k ) # 1-based index
         band2.WriteArray( data )
 
     # Rasterize
     band = raster_out.GetRasterBand(4)
-    band.SetNoDataValue( 200 )
+    #  band.SetNoDataValue( 200 )
     gdal.RasterizeLayer( raster_out, [4], source_layer, burn_values=[255] )
 
     return '/tmp/ciudadela has been generated'

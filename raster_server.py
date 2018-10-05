@@ -102,13 +102,29 @@ def hello_image3():
     source_layer.SetAttributeFilter('cparcela = 1115')
     x_min, x_max, y_min, y_max = source_layer.GetExtent()
 
+    # TODO
+    # ROI_world (x,y) to ROI_pix (j,i)
+    j0 = int(round( ( x_min - x0 ) / pixel_size ))
+    j1 = int(round( ( x_max - x0 ) / pixel_size ))
+    i0 = int(round( - ( y_min - y0 ) / pixel_size ))
+    i1 = int(round( - ( y_max - y0 ) / pixel_size ))
+    # origin for ROI
+    j_off, i_off = int(j0), int(i1) # upper left
+    #
+    j_count = j1 - j0 + 1
+    i_count = i0 - i1 + 1
+    assert( j_count > 0 )
+    assert( i_count > 0 )
+    #
+    x_off = x0 + j0 * pixel_size
+    y_off = y0 - i1 * pixel_size
+
+
     # Create the destination data source
-    x_res = int( (x_max - x_min) / pixel_size )
-    y_res = int( (y_max - y_min) / pixel_size )
     raster_out_fn = '/tmp/ciudadela.tif'
-    raster_out = gdal.GetDriverByName('GTiff').Create( raster_out_fn, x_res, y_res, nbands+1, data_type )
-    #  target_ds = gdal.GetDriverByName('MEM').Create( '', x_res, y_res, nbands, data_type )
-    raster_out.SetGeoTransform(( x_min, pixel_size, 0, y_max, 0, -pixel_size ))
+    raster_out = gdal.GetDriverByName('GTiff').Create( raster_out_fn, j_count, i_count, nbands+1, data_type )
+    #  target_ds = gdal.GetDriverByName('MEM').Create( XXX )
+    raster_out.SetGeoTransform(( x_off, pixel_size, 0, y_off, 0, -pixel_size ))
 
     # Setting spatial reference of output raster
     #  wkt = raster_in.GetProjection()
@@ -118,26 +134,17 @@ def hello_image3():
     raster_out.SetProjection( raster_in.GetProjection() )
 
     # copy ROI
-    def world2pix( x_world, y_world ) : # gt = raster.GetGeoTransform()
-        x0, dx, dxdy, y0, dydx, dy = gt
-        print( gt )
-        x = ( x_world - x0 ) // dx
-        y = ( y_world - y0 ) // dy
-        return x, y
-    x_min_pix, y_max_pix = world2pix( x_min, y_max )
     for k in range(nbands) :
-        xoff, yoff = int(x_min_pix), int(y_max_pix)
-        xcount, ycount = int(x_res), int(y_res)
         band = raster_in.GetRasterBand( 1+k ) # 1-based index
         #  print( '##########', xoff, yoff, xcount, ycount )
-        data = band.ReadAsArray( xoff, yoff, xcount, ycount )
+        data = band.ReadAsArray( j0, i1, j_count, i_count )
         #  print( '##########', k, data.shape )
         band2 = raster_out.GetRasterBand( 1+k ) # 1-based index
         band2.WriteArray( data )
 
     # Rasterize
     band = raster_out.GetRasterBand(4)
-    #  band.SetNoDataValue( 200 )
+    band.SetNoDataValue( 128 )
     gdal.RasterizeLayer( raster_out, [4], source_layer, burn_values=[255] )
 
     return '/tmp/ciudadela has been generated'

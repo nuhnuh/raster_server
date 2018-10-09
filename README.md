@@ -8,14 +8,15 @@ Gdal tips: https://pcjericks.github.io/py-gdalogr-cookbook/raster_layers.html
 ```
     virtualenv -p python3 venv
     source venv/bin/activate
-    pip instal Flask
-    pip instal opencv-python
+    pip install Flask
+    pip install opencv-python
     pip freeze > requirements.txt
 
     pip install gunicorn
 
     # pip install gdal
     # sudo apt-get install libgdal-dev libgdal1-dev
+    export CFLAGS=$(gdal-config --cflags)
     pip install GDAL==$(gdal-config --version | awk -F'[.]' '{print $1"."$2}')
 
     pip install geopandas

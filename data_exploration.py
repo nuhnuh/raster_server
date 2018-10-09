@@ -73,7 +73,7 @@ else :
 from osgeo import ogr
 shp = ogr.Open( shp_fn , 0 ) # 0 means read-only. 1 means writeable.
 layer = shp.GetLayer()
-layer.SetAttributeFilter("PARCELA = '859.0'")
+#  layer.SetAttributeFilter("PARCELA = '859.0'") # does not work :/
 x_min, x_max, y_min, y_max = layer.GetExtent()
 print( layer.GetExtent() )
 layer.ResetReading()
@@ -88,11 +88,11 @@ from osgeo import ogr
 ring = ogr.Geometry(ogr.wkbLinearRing)
 bbox = bboxes[0]
 ( x_l, y_t ), ( x_r, y_b ) = bbox
+ring.AddPoint_2D( x_l, y_t )
 ring.AddPoint_2D( x_l, y_b )
 ring.AddPoint_2D( x_r, y_b )
 ring.AddPoint_2D( x_r, y_t )
 ring.AddPoint_2D( x_l, y_t )
-ring.AddPoint_2D( x_l, y_b )
 # Create polygon
 poly = ogr.Geometry(ogr.wkbPolygon)
 poly.AddGeometry(ring)
@@ -103,8 +103,8 @@ print('poly:', poly)
 #  layer.SetSpatialFilter(ogr.CreateGeometryFromWkt(wkt))
 print( 'len(layer):', len(layer) )
 print('ERROR: Spatial Filter is not working!!!!!!!!!!!!!!')
-#  layer.SetSpatialFilter( poly )
-#  print( 'len(layer):', len(layer) )
+layer.SetSpatialFilter( poly )
+print( 'len(layer):', len(layer) )
 #  for k in range(len(layer)) :
 #      print( k )
 #      aux = layer[k]

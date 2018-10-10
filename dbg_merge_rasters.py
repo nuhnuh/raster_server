@@ -61,6 +61,13 @@ def bbox2geom( bbox ) :
 
 
 
+def geom2bbox( geom ) :
+    xmin, xmax, ymin, ymax = geom.GetEnvelope()
+    bbox = xmin, ymax, xmax, ymin
+    return bbox
+
+
+
 def get_rasters_geom( filenames ) :
     bboxes = get_bboxes( filenames )
     return [ bbox2geom( bbox ) for bbox in bboxes ]
@@ -75,88 +82,9 @@ def find_intersecting_rasters( rasters_geom, bbox ) :
         geom2 = bbox2geom( bbox )
         #  print( 'geom1:', geom1 )
         #  print( 'geom2:', geom2 )
-        if geom1.Intersect( geom2 ) : 
+        if geom1.Intersect( geom2 ) :
             result.append( idx )
     return result
-
-
-
-# load rasters (tifs) geometry
-filenames = get_tif_filenames()
-assert( len(filenames) > 0 ), 'folder empty?'
-#  filenames = filenames[:10]
-bboxes = get_bboxes( filenames )
-[ print( fn, bbox ) for fn, bbox in zip(filenames, bboxes) ]
-#
-rasters_geom = [ bbox2geom( bbox ) for bbox in bboxes ]
-
-
-
-
-
-
-
-# find the intersection of the rasters
-geom = rasters_geom[0]
-print( geom )
-for geom_k in rasters_geom[1:] :
-    print( geom_k )
-    geom = geom.Intersection( geom_k )
-#
-for geom_k in rasters_geom :
-    xy = np.asarray( geom_k.Boundary().GetPoints() )
-    x, y = xy[:,0], xy[:,1]
-    plt.plot( x, y )
-xy = np.asarray( geom.Boundary().GetPoints() )
-x, y = xy[:,0], xy[:,1]
-plt.plot( x, y, ':k' )
-plt.axis('equal')
-plt.show()
-
-
-
-
-
-# load .shp 
-if use_dbg_ds :
-    shp_fn = 'data/Edif_Clases.shp'
-else :
-    raise 'TODO'
-shp = ogr.Open( shp_fn , 0 ) # 0 means read-only. 1 means writeable.
-layer = shp.GetLayer()
-print( 'len(layer):', len(layer) )
-
-
-
-
-#
-for geom_k in rasters_geom :
-    xy = np.asarray( geom_k.Boundary().GetPoints() )
-    x, y = xy[:,0], xy[:,1]
-    plt.plot( x, y )
-xy = np.asarray( geom.Boundary().GetPoints() )
-x, y = xy[:,0], xy[:,1]
-plt.plot( x, y, ':k' )
-#
-feature = layer[248]
-envelope = feature.GetGeometryRef().GetEnvelope()
-xmin, xmax, ymin, ymax = envelope
-bbox = xmin, ymax, xmax, ymin
-xy = np.asarray( bbox2geom( bbox ).Boundary().GetPoints() )
-x, y = xy[:,0], xy[:,1]
-plt.plot( x, y, 'c' )
-#
-boundary = feature.GetGeometryRef().GetBoundary()
-xy = np.asarray( boundary.GetPoints() )
-x, y = xy[:,0], xy[:,1]
-plt.plot( x, y, 'c' )
-#
-plt.axis('equal')
-plt.show()
-
-
-
-
 
 
 
@@ -169,7 +97,7 @@ def raster2img( raster ) :
     for k in range(min(3,nbands)) :
         band = raster.GetRasterBand( 1+k ) # 1-based index
         data = band.ReadAsArray( 0, 0, xcount, ycount )
-        print('TODO (raster2img): use all bands')
+        print('WARNING: raster2img uses only 3 bands')
         if img is None :
             img = data
         else:
@@ -200,14 +128,15 @@ def load_roi_from_tif( fn, roi_bbox ) :
     # origin for ROI
     j_off, i_off = int(j0), int(i1) # upper left
     #
-    j_count = j1 - j0 + 1
-    i_count = i0 - i1 + 1
+    j_count = j1 - j0
+    i_count = i0 - i1
     assert( j_count > 0 )
     assert( i_count > 0 )
+    assert( j_count <= raster_in.RasterXSize )
+    assert( i_count <= raster_in.RasterYSize )
     #
     x_off = x0 + j0 * pixel_size
     y_off = y0 - i1 * pixel_size
-
 
     # Create the destination data source
     raster_out = gdal.GetDriverByName('MEM').Create( '', j_count, i_count, nbands+1, data_type )
@@ -225,7 +154,9 @@ def load_roi_from_tif( fn, roi_bbox ) :
     for k in range(nbands) :
         band = raster_in.GetRasterBand( 1+k ) # 1-based index
         #  print( '##########', xoff, yoff, xcount, ycount )
+        print('j0,i1,j_count,i_count:', j0, i1, j_count, i_count)
         data = band.ReadAsArray( j0, i1, j_count, i_count )
+        print('data.shape:', data.shape)
         #  print( '##########', k, data.shape )
         band2 = raster_out.GetRasterBand( 1+k ) # 1-based index
         band2.WriteArray( data )
@@ -234,10 +165,19 @@ def load_roi_from_tif( fn, roi_bbox ) :
 
 
 
-def get_roi( filenames, rasters_geom, bbox ) :
-    idxs = find_intersecting_rasters( rasters_geom, bbox )
+def get_roi( filenames, rasters_geom, roi_bbox ) :
+    idxs = find_intersecting_rasters( rasters_geom, roi_bbox )
+    # check if the roi is fully inside one of the rasters
+    roi_geom = bbox2geom( roi_bbox )
     for idx in idxs :
-        subimg = load_roi_from_tif( filenames[idx], bbox )
+        if geom2bbox(roi_geom.Intersection(rasters_geom[idx])) == roi_bbox :
+            img = load_roi_from_tif( filenames[idx], roi_bbox )
+            return img
+    #
+    raise 'no tif contains the full roi'
+    #
+    for idx in idxs :
+        subimg = load_roi_from_tif( filenames[idx], roi_bbox )
         subimg = raster2img( subimg )
         #
         import matplotlib.pyplot as plt
@@ -247,42 +187,53 @@ def get_roi( filenames, rasters_geom, bbox ) :
 
 
 
-
-
-xmin, xmax, ymin, ymax = feature.GetGeometryRef().GetEnvelope()
-roi_bbox = xmin, ymax, xmax, ymin
-subimg = get_roi( filenames, rasters_geom, roi_bbox )
-
-
-
-
-
-
-
-
-# find the rasters that intersect each object
-print('processing .shp')
-#  for k in range(min(7,len(layer))) :
-for k in range(len(layer)) :
-    #  feat = layer[k]
-    #  print('-', k )
-    feat = layer.GetFeature( k )
-    envelope = feat.GetGeometryRef().GetEnvelope()
-    xmin, xmax, ymin, ymax = envelope
-    bbox = xmin, ymax, xmax, ymin
-    #  print( 'envelope:', envelope, ' -> bbox:', bbox )
-    idxs = find_intersecting_rasters( rasters_geom, bbox )
-    print( k, [ filenames[idx] for idx in idxs ] )
-    #
-    if len(idxs) > 0 :
-        roi_bbox = bbox
-        subimg = get_roi( filenames, rasters_geom, roi_bbox )
+# load rasters (tifs) geometry
+filenames = get_tif_filenames()
+assert( len(filenames) > 0 ), 'folder empty?'
+#  filenames = filenames[:10]
+bboxes = get_bboxes( filenames )
+[ print( fn, bbox ) for fn, bbox in zip(filenames, bboxes) ]
+#
+rasters_geom = [ bbox2geom( bbox ) for bbox in bboxes ]
 
 
 
 
+# find the intersection of the rasters
+geom = rasters_geom[0]
+print( geom )
+for geom_k in rasters_geom[1:] :
+    print( geom_k )
+    geom = geom.Intersection( geom_k )
+#
+plt.subplot(1,2,1)
+for geom_k in rasters_geom :
+    xy = np.asarray( geom_k.Boundary().GetPoints() )
+    x, y = xy[:,0], xy[:,1]
+    plt.plot( x, y )
+xy = np.asarray( geom.Boundary().GetPoints() )
+x, y = xy[:,0], xy[:,1]
+plt.plot( x, y, ':k' )
+plt.axis('equal')
+plt.subplot(1,2,2)
+#  plt.show()
 
 
+# check that bbox2geom and geom2bbox work OK
+print('------')
+print( geom )
+print( geom2bbox( geom ) )
+print( bbox2geom(geom2bbox( geom )) )
+print( geom2bbox(bbox2geom(geom2bbox( geom ))) )
+
+
+# load pixels in the intersection of images
+roi_bbox = geom2bbox( geom )
+roi_img = get_roi( filenames, rasters_geom, roi_bbox )
+roi_img = raster2img( roi_img )
+import matplotlib.pyplot as plt
+plt.imshow( roi_img )
+plt.show()
 
 
 

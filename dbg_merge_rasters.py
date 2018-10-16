@@ -171,13 +171,18 @@ def get_roi( filenames, rasters_geom, roi_bbox ) :
     roi_geom = bbox2geom( roi_bbox )
     for idx in idxs :
         if geom2bbox(roi_geom.Intersection(rasters_geom[idx])) == roi_bbox :
-            img = load_roi_from_tif( filenames[idx], roi_bbox )
-            return img
-    #
-    raise 'no tif contains the full roi'
+            raster = load_roi_from_tif( filenames[idx], roi_bbox )
+            print( 'a tif contains the full roi' )
+            return raster
+    print( 'no tif contains the full roi' )
+    raise 'TODO'
     #
     for idx in idxs :
-        subimg = load_roi_from_tif( filenames[idx], roi_bbox )
+        # intersect each raster with the roi
+        ibbox = geom2bbox(roi_geom.Intersection(rasters_geom[idx]))
+        # load subimg of the intersection
+        subimg = load_roi_from_tif( filenames[idx], ibbox )
+
         subimg = raster2img( subimg )
         #
         import matplotlib.pyplot as plt
@@ -206,7 +211,6 @@ for geom_k in rasters_geom[1:] :
     print( geom_k )
     geom = geom.Intersection( geom_k )
 #
-plt.subplot(1,2,1)
 for geom_k in rasters_geom :
     xy = np.asarray( geom_k.Boundary().GetPoints() )
     x, y = xy[:,0], xy[:,1]
@@ -215,8 +219,7 @@ xy = np.asarray( geom.Boundary().GetPoints() )
 x, y = xy[:,0], xy[:,1]
 plt.plot( x, y, ':k' )
 plt.axis('equal')
-plt.subplot(1,2,2)
-#  plt.show()
+plt.show()
 
 
 # check that bbox2geom and geom2bbox work OK
@@ -227,14 +230,44 @@ print( bbox2geom(geom2bbox( geom )) )
 print( geom2bbox(bbox2geom(geom2bbox( geom ))) )
 
 
-# load pixels in the intersection of images
+# define a 10 m widther roi than the intersection of the 4 tifs
 roi_bbox = geom2bbox( geom )
-roi_img = get_roi( filenames, rasters_geom, roi_bbox )
-roi_img = raster2img( roi_img )
+print( 'roi_bbox:', roi_bbox )
+roi_bbox = (614170.0, 4734060.0, 614300.0, 4733930.0)
+print( 'roi_bbox:', roi_bbox )
+#
+for geom_k in rasters_geom :
+    xy = np.asarray( geom_k.Boundary().GetPoints() )
+    x, y = xy[:,0], xy[:,1]
+    plt.plot( x, y )
+xy = np.asarray( bbox2geom(roi_bbox).Boundary().GetPoints() )
+x, y = xy[:,0], xy[:,1]
+plt.plot( x, y, ':k' )
+plt.axis('equal')
+plt.show()
+
+
+
+#  # dbg
+#  roi_bbox = geom2bbox( geom )
+#  for idx in range(len(filenames)) :
+#      print('-- ', idx)
+#      img = load_roi_from_tif( filenames[idx], roi_bbox )
+#      img = raster2img( img )
+#      print(img)
+
+
+
+
+# load pixels in the intersection of images
+roi_raster = get_roi( filenames, rasters_geom, roi_bbox )
+roi_img = raster2img( roi_raster )
 import matplotlib.pyplot as plt
 plt.imshow( roi_img )
 plt.show()
 
+
+raise 'what if roi_bbox is not fully included in any of the tifs?'
 
 
 

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
+"""
+    TODO: merge subimgs of the tifs intersections
+"""
 
-
-#  raster.SetProjection( layer.GetSpatialRef().ExportToWkt() )
 
 
 import glob
@@ -13,27 +14,14 @@ import matplotlib.pyplot as plt
 
 
 
-use_dbg_ds = True # use dbg dataset
-use_dbg_ds = False # use dbg dataset
-#  raise 'TODO: merge subimgs of the tifs intersections'
-
-
-
 dst_dir = '/tmp'
 dst_dir = os.path.expanduser( dst_dir )
 
 
 
 def get_tif_filenames() :
-    src_dir = '/media/manu/TOSHIBA EXT/Ortofotos/Navarra_2017_RGBi/*.tif'
+    src_dir = 'data2/orto/*.tif'
     filenames = glob.glob( src_dir )
-    if use_dbg_ds :
-        filenames = [
-                'data/0141_6-4.tif',
-                'data/0141_6-5.tif',
-                'data/0141_7-4.tif',
-                'data/0141_7-5.tif'
-                ]
     return filenames
 
 
@@ -175,9 +163,11 @@ def load_roi_from_tif( fn, roi_bbox ) :
 
 
 def get_roi( filenames, rasters_geom, roi_bbox ) :
+    print( 'roi_bbox:', roi_bbox )
     idxs = find_intersecting_rasters( rasters_geom, roi_bbox )
     roi_geom = bbox2geom( roi_bbox )
     for idx in idxs :
+        print( 'raster_bbox:', geom2bbox(rasters_geom[idx]) )
         if geom2bbox(roi_geom.Intersection(rasters_geom[idx])) == roi_bbox :
             raster = load_roi_from_tif( filenames[idx], roi_bbox )
             print( 'a tif contains the full roi' )
@@ -284,6 +274,23 @@ def test1() :
 
 
 
+def draw_mask( subraster, source_layer ) :
+
+    nbands = subraster.RasterCount
+    data_type = subraster.GetRasterBand(1).DataType
+
+    subraster_mask = gdal.GetDriverByName('MEM').Create( '', 
+            subraster.RasterXSize, subraster.RasterYSize, 1, data_type )
+    subraster_mask.SetGeoTransform( subraster.GetGeoTransform() )
+
+    # Rasterize
+    band = subraster_mask.GetRasterBand(1)
+    band.SetNoDataValue( 128 )
+    gdal.RasterizeLayer( subraster_mask, [1], source_layer, burn_values=[255] )
+
+    return subraster_mask
+
+
 
 def test2() :
 
@@ -297,16 +304,9 @@ def test2() :
 
     # load shp
     print( 'loading shp..' )
-    if use_dbg_ds :
-        shp_fn = 'data/Edif_Clases.shp'
-    else :
-        shp_fn = '/media/manu/TOSHIBA EXT/Entrenamiento_Matlab/Edif_Clases.shp'
+    shp_fn = 'data2/shp/Edif_Clases.shp'
     shp = ogr.Open( shp_fn , 0 ) # 0 means read-only. 1 means writeable.
     layer = shp.GetLayer()
-    if use_dbg_ds :
-        print( 'len(layer):', len(layer) )
-        print( 'setting filter..' )
-        layer.SetAttributeFilter('PARCELA = 370')
     print( 'len(layer):', len(layer) )
     #
     for idx, feature in enumerate(layer) :
@@ -315,7 +315,7 @@ def test2() :
         xmin, xmax, ymin, ymax = envelope
         #  roi_bbox = xmin, ymax, xmax, ymin
         # extend roi
-        margin = 15
+        margin = 14
         roi_bbox = xmin-margin, ymax+margin, xmax+margin, ymin-margin
 
         #  # dbg
@@ -326,31 +326,38 @@ def test2() :
         #
         subraster = get_roi( filenames, rasters_geom, roi_bbox )
 
-        #  plt.imshow( raster2img(subraster) )
-        #  plt.show()
+        #  # save subraster
+        #  fn = '{:06d}.tif'.format( idx )
+        #  fn = os.path.join( dst_dir, fn )
+        #  print( 'saving ', fn )
+        #  gdal.GetDriverByName('GTiff').CreateCopy( fn, subraster, strict=0 ) # strict=1 : report errors
 
-        # save subraster
-        fn = '{:06d}.tif'.format( idx )
-        fn = os.path.join( dst_dir, fn )
-        print( 'saving ', fn )
-        gdal.GetDriverByName('GTiff').CreateCopy( fn, subraster, strict=0 ) # strict=1 : report errors
+        # subraster_mask
+        shp_idx = ogr.GetDriverByName('Memory').CreateDataSource('')
+        source_layer = shp_idx.CreateLayer('states_extent')
+        source_layer.CreateFeature( feature )
+        subraster_mask = draw_mask( subraster, source_layer )
 
         # dbg
-        if not use_dbg_ds :
-            continue
+        #  continue
         img = raster2img( subraster )
-        plt.subplot(2,2,1)
+        mask = raster2img( subraster_mask )
+        print( 'mask.shape:', mask.shape )
+        plt.subplot(2,3,1)
         plt.imshow( img[:,:,0] )
         plt.title('0')
-        plt.subplot(2,2,2)
+        plt.subplot(2,3,2)
         plt.imshow( img[:,:,1] )
         plt.title('1')
-        plt.subplot(2,2,3)
+        plt.subplot(2,3,3)
         plt.imshow( img[:,:,2] )
         plt.title('2')
-        plt.subplot(2,2,4)
+        plt.subplot(2,3,4)
         plt.imshow( img[:,:,3] )
         plt.title('3')
+        plt.subplot(2,3,5)
+        plt.imshow( mask )
+        plt.title('mask')
         plt.show()
 
 

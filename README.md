@@ -45,3 +45,17 @@ you can also run the app through
 
 this way it is not required to reestart flask after updating the source code
 
+
+
+--------------------------------------------
+
+# data exploration
+
+gdalinfo
+ogrinfo
+
+## tip: buscar tipos de cubiertas en el .shp
+
+```
+    ogrinfo data/Edif_Clases.shp -al | grep TIPO_CUB | sort | uniq
+```

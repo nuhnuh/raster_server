@@ -383,11 +383,11 @@ def test2() :
         for k in range(img.shape[2]) :
             img1[ I1, k ] = 0
             img2[ I2, k ] = 0
-        #
+        # extract features in the mask
         img3 = np.array( img )
         #  img3 = img3.reshape((-1,3))
-        color_m   = img3[ mask2 != 0 ].mean(axis=0)
-        color_std = img3[ mask2 != 0 ].std(axis=0)
+        color_m   = img3[ mask1 != 0 ].mean(axis=0)
+        color_std = img3[ mask1 != 0 ].std(axis=0)
         print( feature['TIPO_CUBIE'], 'color:', color_m, color_std )
         data.append( (feature['TIPO_CUBIE'], color_m) )
         continue

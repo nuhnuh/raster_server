@@ -52,8 +52,12 @@ X_test_scaled  = scaler.transform( X_test )
 
 # LDA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
-lda = LDA( n_components=2 )
+lda = LDA( n_components=4 )
 lda.fit( X_train_scaled, y_train )
+
+
+
+# visualize train set dicriminant components
 X_lda = lda.transform( X_train_scaled )
 #
 x_DC1 = X_lda[:,0]
@@ -62,7 +66,7 @@ for class_ in le.classes_ :
     I = y_train == le.transform([ class_ ])
     color = np.random.rand(1,3)
     color = tuple( color[0,:] )
-    plt.plot( x_DC1[I], x_DC2[I], linestyle='', marker='o', color=color )
+    plt.plot( x_DC1[I], x_DC2[I], linestyle='', marker='o', color=color, alpha=.5 )
 plt.legend( le.classes_ )
 plt.show()
 
@@ -81,6 +85,7 @@ plt.show()
 
 
 
+# visualize test set dicriminant components
 X_lda = lda.transform( X_test_scaled )
 #
 x_DC1 = X_lda[:,0]
@@ -89,9 +94,39 @@ for class_ in le.classes_ :
     I = y_test == le.transform([ class_ ])
     color = np.random.rand(1,3)
     color = tuple( color[0,:] )
-    plt.plot( x_DC1[I], x_DC2[I], linestyle='', marker='o', color=color )
+    plt.plot( x_DC1[I], x_DC2[I], linestyle='', marker='o', color=color, alpha=.5 )
 plt.legend( le.classes_ )
 plt.show()
+
+
+
+#  from sklearn.svm import SVC
+#  clf = SVC( gamma='scale', decision_function_shape='ovo' )
+#  clf.fit( X_train_scaled, y_train ) 
+#  #
+#  y_train_pred = clf.predict( X_train_scaled )
+#  y_test_pred  = clf.predict( X_test_scaled )
+#  #
+#  from sklearn.metrics import accuracy_score
+#  print('Train accuracy {}%'.format( accuracy_score(y_train, y_train_pred) ))
+#  print('Test accuracy {}%'.format( accuracy_score(y_test, y_test_pred) ))
+
+
+
+from sklearn.svm import SVC
+clf = SVC( gamma='scale', decision_function_shape='ovo' )
+X_train_lda = lda.transform( X_train_scaled )
+X_test_lda  = lda.transform( X_test_scaled )
+clf.fit( X_train_lda, y_train ) 
+#
+y_train_pred = clf.predict( X_train_lda )
+y_test_pred  = clf.predict( X_test_lda )
+#
+from sklearn.metrics import accuracy_score
+print('Train accuracy {}%'.format( accuracy_score(y_train, y_train_pred) ))
+print('Test accuracy {}%'.format( accuracy_score(y_test, y_test_pred) ))
+
+
 
 
 #

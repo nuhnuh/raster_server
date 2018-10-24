@@ -137,6 +137,119 @@ sys.exit(0)
 
 
 
+# TODO
+def load_dataset() :
+    X_files, y = ds
+    X = []
+    for fn in X_files :
+        img = cv2.imread( fn )[..., ::-1]
+        img = np.float32( img )
+#         img = img[...,0]/255 + img[...,1]/255 + img[...,2]/255\n",
+        X.append( img )
+    X = np.stack( X, axis=0 )
+    return X, y
+def create_model( input_shape ) :
+
+    from keras.models import Model
+    from keras.layers import Cropping2D, Lambda, Reshape
+    from keras.layers import Conv2D, MaxPooling2D
+    from keras.layers import Input, Dense, ELU, Activation, Flatten
+    from keras.layers import Dropout, BatchNormalization
+
+    from keras import backend as K
+    print('input_shape', input_shape)
+    input_ = Input( shape=input_shape )
+#     hidden = Lambda( lambda x: x[:,:,:,0]/3 + x[:,:,:,1]/3 + x[:,:,:,2]/3 )( input_ )\n",
+#     hidden = Reshape( (*input_shape[:-1], 1) )( hidden )\n",
+    hidden = input_
+    hidden = BatchNormalization()( hidden )
+#     hidden = Cropping2D( cropping=((0,0),(0,0)) )( input_ )
+    with K.name_scope('Layer1') :
+        hidden = Conv2D( 16, 3 )( hidden )
+        print( 'Layer 1:', hidden.shape )
+        hidden = MaxPooling2D( pool_size=(2, 2) )( hidden )
+        hidden = ELU()( hidden )
+    with K.name_scope('Layer2') :
+        hidden = Conv2D(24, 3)( hidden )
+        print( 'Layer 2:', hidden.shape )
+        hidden = MaxPooling2D(pool_size=(2, 2))( hidden )
+        hidden = ELU()( hidden )
+    with K.name_scope('Layer3') :
+        hidden = Conv2D(36, 3)( hidden )
+        print( 'Layer 3:', hidden.shape )
+        hidden = MaxPooling2D(pool_size=(2, 2))( hidden )
+        hidden = ELU()( hidden )
+    hidden = Dropout(.5)( hidden )
+    hidden = Flatten()( hidden )
+    with K.name_scope('Layer4') :
+        hidden = Dense(512)( hidden )
+        hidden = ELU()( hidden )
+    #  with K.name_scope('Layer5'):\n",
+    #      model.add(Dense(512))\n",
+    #      #  model.add(BatchNormalization())\n",
+    #      #  model.add(Dropout(.3))\n",
+    #      model.add(ELU()) # model.add(Activation('relu'))\n",
+    with K.name_scope('Output') :
+        #  model.add(Dropout(.3))
+        hidden = Dense(n_classes)( hidden )
+        predictions = Activation('softmax')( hidden )
+    model = Model(inputs=input_, outputs=predictions)
+    return model
+def todo2():
+    from keras.optimizers import Adam
+    from keras.callbacks import TensorBoard, ModelCheckpoint, ReduceLROnPlateau, EarlyStopping
+
+
+    # reproducible results :)
+    np.random.seed(0)
+
+
+    input_shape = X_train[0,...].shape
+
+
+
+    # create model
+    model = create_model( input_shape )
+
+    # train model
+
+    # generators
+    train_generator = create_train_generator( train_fns, train_y )
+    validation_generator = create_validation_generator( test_fns, test_y )
+
+    # training meta
+    batch_size = 32
+    optimizer = Adam(lr=1e-4)
+    # callbacks
+    log_dir = '/tmp/log_dir'
+    logging = TensorBoard( log_dir=log_dir )
+    reduce_lr = ReduceLROnPlateau( monitor='val_loss', factor=0.1, patience=2, verbose=1 )
+    early_stopping = EarlyStopping( monitor='val_loss', min_delta=0, patience=5, verbose=1 )
+
+    # train
+    model.compile( loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy'] )
+    history = model.fit_generator(
+            generator=train_generator,
+            steps_per_epoch=max(1, num_train//batch_size),
+            validation_data=validation_generator,
+            validation_steps=max(1, num_val//batch_size),
+            epochs=30,
+            initial_epoch=0,
+            callbacks=[logging, reduce_lr, early_stopping]
+            )
+
+    # save
+    fn = '/tmp/model.h5'
+    model.save( fn )
+
+    # eval model
+    score = model.evaluate( X_test, Y_test, verbose=1 )
+    print('Test score (loss?):', score[0])
+    print('Test accuracy:', score[1])
+
+
+
+
 
 
 
